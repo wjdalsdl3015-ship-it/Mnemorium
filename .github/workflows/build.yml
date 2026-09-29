@@ -9,6 +9,11 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 60
 
+    # Windows 기본 인코딩(cp1252) 때문에 스크립트의 ✓ 출력이 오류를 내는 문제 방지
+    env:
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: utf-8
+
     steps:
       - name: 소스 가져오기
         uses: actions/checkout@v4
