@@ -1,0 +1,60 @@
+name: Build Windows
+
+# 수동 실행 전용: Actions 탭에서 "Run workflow" 버튼을 눌러야 시작됩니다.
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: 소스 가져오기
+        uses: actions/checkout@v4
+
+      - name: Node.js 설치
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Python 설치
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Rust 설치
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust 캐시 (다음 빌드 속도 향상)
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "src-tauri -> target"
+
+      - name: Python 서버 빌드에 필요한 패키지 설치
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          # 저장소 안의 requirements.txt를 모두 찾아서 설치 (node_modules 제외)
+          find . -name requirements.txt -not -path "*/node_modules/*" | while read f; do
+            echo "Installing $f"
+            pip install -r "$f"
+          done
+
+      - name: Python 서버 빌드
+        run: python scripts/build_python_server.py
+
+      - name: npm 패키지 설치
+        run: npm install
+
+      - name: Tauri 앱 빌드
+        run: npm run tauri build
+
+      - name: 설치 파일 업로드
+        uses: actions/upload-artifact@v4
+        with:
+          name: Mnemorium-windows
+          path: src-tauri/target/release/bundle/**/*
+          if-no-files-found: error
